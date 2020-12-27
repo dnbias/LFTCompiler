@@ -45,31 +45,45 @@ public class Translator {
     // ... completare ...
   }
 
-  private void statlist() {
+  private void statlist(int lnext) {
+    int lnext_stat = code.newLabel();
     stat();
-    statlist();
+    code.emitLabel(lnext_stat);
+    int lnext_statlisp = code.newLabel();
+    statlistp();
+    code.emitLabel(lnext_statlisp);
+    code.emit(OpCode.GOto, lnext);
   }
 
-  private void statlistp() {
+  private void statlistp(int lnext) {
     switch (look.tag) {
     case ';':
       match(';');
-      stat();
-      statlistp();
+      int lnext_stat = code.newLabel();
+      stat(lnext_stat);
+      code.emitLabel(lnext_stat);
+      int lnext_statlistp = code.newLabel();
+      statlistp(lnext_statlistp);
+      code.emitLabel(lnext_statlistp);
+      break;
+    case '}':
+    case Tag.EOF:
       break;
     default:
-      // Follow
+      error("statlistp");
     }
+    code.emit(OpCode.GOto, lnext);
   }
 
-  public void stat(/* completare */) {
+  public void stat(int lnext) {
+    int id_addr;
     switch (look.tag) {
     case '=':
       match('=');
       if (look.tag != Tag.ID) {
         error("stat, expected ID found " + look);
       }
-      int id_addr = st.lookupAddress(((Word)look).lexeme);
+      id_addr = st.lookupAddress(((Word)look).lexeme);
       if (id_addr == -1) {
         id_addr = count;
         st.insert(((Word)look).lexeme, count++);
@@ -91,7 +105,7 @@ public class Translator {
       if (look.tag != Tag.ID) {
         error("Error in grammar (stat) after read( with " + look);
       }
-      int id_addr = st.lookupAddress(((Word)look).lexeme);
+      id_addr = st.lookupAddress(((Word)look).lexeme);
       if (id_addr == -1) {
         id_addr = count;
         st.insert(((Word)look).lexeme, count++);
@@ -104,12 +118,12 @@ public class Translator {
 
     case Tag.COND:
       match(Tag.COND);
-      int cond_f = code.newLabel();
+      int cond_else = code.newLabel();
       int cond_exit = code.newLabel();
-      whenlist(cond_f);
+      whenlist(cond_else, cond_exit);
       match(Tag.ELSE);
-      code.emitLabel(cond_f);
-      stat();
+      code.emitLabel(cond_else);
+      stat(cond_exit);
       code.emitLabel(cond_exit);
       break;
 
@@ -122,26 +136,32 @@ public class Translator {
       bexpr(while_t, while_f);
       code.emitLabel(while_f);
       match(')');
-      stat();
+      int lnext_stat = code.newLabel();
+      stat(lnext_stat);
+      code.emitLabel(lnext_stat);
       break;
 
     case '{':
       match('{');
-      statlist();
+      int lnext_statlist = code.newLabel();
+      statlist(lnext_statlist);
+      code.emitLabel(lnext_statlist);
       match('}');
       break;
 
     default:
       error("Syntax error in stat()");
     }
+    code.emit(OpCode.GOto, lnext);
   }
 
-  private void whenlist(int cond_exit) {
+  private void whenlist(int cond_else, int cond_exit) {
     int whenitem_f = code.newLabel();
     whenitem(whenitem_f);
     code.emit(OpCode.GOto, cond_exit);
     code.emitLabel(whenitem_f);
     whenlistp(cond_exit);
+    code.emit(OpCode.GOto, cond_else);
   }
 
   private void whenlistp(int cond_exit) {
@@ -168,7 +188,9 @@ public class Translator {
     match(')');
     match(Tag.DO);
     code.emitLabel(when_t);
-    stat();
+    int lnext = code.newLabel();
+    stat(lnext);
+    code.emitLabel(lnext);
   }
 
   private void bexpr(int when_t, int when_f) {
@@ -240,7 +262,7 @@ public class Translator {
       match('(');
       exprlist();
       match(')');
-      code.emit(OpCode.iadd);
+      code.emit(OpCode.imul);
       break;
     case '/':
       match('/');
@@ -249,8 +271,8 @@ public class Translator {
       code.emit(OpCode.idiv);
       break;
     case Tag.ID:
-      int ID_value = st.lookupAddress(((Word)look).lexeme);
-      code.emit(OpCode.iload, ID_value);
+      int ID_addr = st.lookupAddress(((Word)look).lexeme);
+      code.emit(OpCode.iload, ID_addr);
       match(Tag.ID);
       break;
     case Tag.NUM:
