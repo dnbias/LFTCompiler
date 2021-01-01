@@ -134,6 +134,9 @@ public class Translator {
       stat(lnext);
       break;
 
+    case Tag.EOF:
+      break;
+
     case '{':
       match('{');
       statlist(lnext);
@@ -288,5 +291,26 @@ public class Translator {
       expr();
       exprlistp();
     }
+  }
+
+  public static void main(String[] args) {
+    String path = args[0];
+    if (!(path.matches("\\w*.lft"))) {
+      System.out.println("LFT Compiler - UniTo 2020");
+      System.out.println("Usage:\n"
+                         + "\tjava Translator [filename].lft\n"
+                         + "Output:\n"
+                         + "\tOutput.j");
+      return;
+    }
+    try {
+      BufferedReader br = new BufferedReader(new FileReader(path));
+      Lexer lex = new Lexer();
+      Translator tr = new Translator(lex, br);
+      tr.prog();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    return;
   }
 }
