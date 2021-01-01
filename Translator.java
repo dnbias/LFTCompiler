@@ -1,5 +1,5 @@
 import java.io.*;
-import org.graalvm.compiler.word.Word.Opcode;
+// import org.graalvm.compiler.word.Word.Opcode;
 
 public class Translator {
   private Lexer lex;
@@ -32,7 +32,6 @@ public class Translator {
   }
 
   public void prog() {
-    // ... completare ...
     int lnext_prog = code.newLabel();
     statlist(lnext_prog);
     code.emitLabel(lnext_prog);
@@ -47,12 +46,9 @@ public class Translator {
 
   private void statlist(int lnext) {
     int lnext_stat = code.newLabel();
-    stat();
+    stat(lnext_stat);
     code.emitLabel(lnext_stat);
-    int lnext_statlisp = code.newLabel();
-    statlistp();
-    code.emitLabel(lnext_statlisp);
-    code.emit(OpCode.GOto, lnext);
+    statlistp(lnext);
   }
 
   private void statlistp(int lnext) {
@@ -62,17 +58,17 @@ public class Translator {
       int lnext_stat = code.newLabel();
       stat(lnext_stat);
       code.emitLabel(lnext_stat);
-      int lnext_statlistp = code.newLabel();
-      statlistp(lnext_statlistp);
-      code.emitLabel(lnext_statlistp);
+      statlistp(lnext);
       break;
     case '}':
+      match('}');
     case Tag.EOF:
+      match(Tag.EOF);
+      code.emit(OpCode.GOto, lnext);
       break;
     default:
       error("statlistp");
     }
-    code.emit(OpCode.GOto, lnext);
   }
 
   public void stat(int lnext) {
@@ -97,6 +93,7 @@ public class Translator {
       match(Tag.PRINT);
       match('(');
       exprlist();
+      code.emit(OpCode.invokestatic, 1);
       match(')');
       break;
     case Tag.READ:
@@ -130,22 +127,16 @@ public class Translator {
     case Tag.WHILE:
       match(Tag.WHILE);
       int while_t = code.newLabel();
-      int while_f = code.newLabel();
       match('(');
       code.emitLabel(while_t);
-      bexpr(while_t, while_f);
-      code.emitLabel(while_f);
+      bexpr(while_t, lnext);
       match(')');
-      int lnext_stat = code.newLabel();
-      stat(lnext_stat);
-      code.emitLabel(lnext_stat);
+      stat(lnext);
       break;
 
     case '{':
       match('{');
-      int lnext_statlist = code.newLabel();
-      statlist(lnext_statlist);
-      code.emitLabel(lnext_statlist);
+      statlist(lnext);
       match('}');
       break;
 
