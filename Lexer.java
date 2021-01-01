@@ -55,20 +55,19 @@ public class Lexer {
         line++;
         return lexicalScan(br);
       case '*':
-        int state = 0;
-        Automaton a = new Automaton(state, peek);
-        while (state >= 0) {
+        while (peek != (char)-1) {
+          do {
+            readch(br);
+          } while (peek != '*');
           readch(br);
-          if (peek == (char)-1) {
-            error("Invalid Comment, reached EOF\n", peek);
-            return null;
-          } else if (peek == '\n') {
-            line++;
+          if (peek == '/') {
+            peek = ' ';
+            break;
           }
-          a.reset(state, peek);
-          state = a.comment();
         }
-        peek = ' ';
+        if (peek == (char)-1) {
+          error("Invalid Comment, reached EOF\n", peek);
+        }
         return lexicalScan(br);
       default:
         // peek = ' ';
