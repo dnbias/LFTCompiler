@@ -174,6 +174,10 @@ public class Lexer {
           return Word.print;
         case "read":
           return Word.read;
+        case "true":
+            return Word.b_true;
+        case "false":
+            return Word.b_false;
         default:
           return new Word(Tag.ID, identifier);
         }

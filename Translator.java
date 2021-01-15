@@ -187,49 +187,74 @@ public class Translator {
     code.emitLabel(lnext);
   }
 
-  private void bexpr(int when_t, int when_f) {
+  private void bexpr(int b_true, int b_false) {
+      int b1_true, b2_
     switch (((Word)look).lexeme) {
+    case "true":
+              code.emit(OpCode.GOto, b_true);
+              break;
+    case "false":
+              code.emit(OpCode.GOto, b_false);
+              break;
     case ">":
       match(Tag.RELOP);
       expr();
       expr();
-      code.emit(OpCode.if_icmpgt, when_t);
-      code.emit(OpCode.GOto, when_f);
+      code.emit(OpCode.if_icmpgt, b_true);
+      code.emit(OpCode.GOto, b_false);
       break;
     case ">=":
       match(Tag.RELOP);
       expr();
       expr();
-      code.emit(OpCode.if_icmpge, when_t);
-      code.emit(OpCode.GOto, when_f);
+      code.emit(OpCode.if_icmpge, b_true);
+      code.emit(OpCode.GOto, when_fb_false);
       break;
     case "<":
       match(Tag.RELOP);
       expr();
       expr();
-      code.emit(OpCode.if_icmplt, when_t);
-      code.emit(OpCode.GOto, when_f);
+      code.emit(OpCode.if_icmplt, b_true);
+      code.emit(OpCode.GOto, b_false);
       break;
     case "<=":
       match(Tag.RELOP);
       expr();
       expr();
-      code.emit(OpCode.if_icmple, when_t);
-      code.emit(OpCode.GOto, when_f);
+      code.emit(OpCode.if_icmple, b_true);
+      code.emit(OpCode.GOto, b_false);
       break;
     case "==":
       match(Tag.RELOP);
       expr();
       expr();
-      code.emit(OpCode.if_icmpeq, when_t);
-      code.emit(OpCode.GOto, when_f);
+      code.emit(OpCode.if_icmpeq, b_true);
+      code.emit(OpCode.GOto, b_false);
       break;
     case "<>":
       match(Tag.RELOP);
       expr();
       expr();
-      code.emit(OpCode.if_icmpne, when_t);
-      code.emit(OpCode.GOto, when_f);
+      code.emit(OpCode.if_icmpne, b_true);
+      code.emit(OpCode.GOto, b_false);
+      break;
+    case "!":
+      match(Tag.BOOLOP);
+      bexpr(b_false, b_true);
+      break;
+    case "&&":
+      match(Tag.BOOLOP);
+      b1_true = newLabel();
+      bexpr(b1_true, b_false);
+      emitLabel(b1_true);
+      bexpr(b_true, b_false);
+      break;
+    case "||":
+      match(Tag.BOOLOP);
+      b1_false = newLabel();
+      bexpr(b_true, b1_false);
+      emitLabel(b1_false);
+      bexpr(b_true, b_false);
       break;
     default:
       error("bexpr()");
