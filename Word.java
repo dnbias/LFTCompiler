@@ -26,5 +26,8 @@ public class Word extends Token {
         eq = new Word(Tag.RELOP, "=="),
         le = new Word(Tag.RELOP, "<="),
         ge = new Word(Tag.RELOP, ">="),
-        ne = new Word(Tag.RELOP, "<>");
+        ne = new Word(Tag.RELOP, "<>"),
+        b_true = new Word(Tag.BOOLEAN, "true"),
+        b_false = new Word(Tag.BOOLEAN, "false");
+
 }
