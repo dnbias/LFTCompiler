@@ -124,8 +124,7 @@ public class Lexer {
     case (char)-1:
       return new Token(Tag.EOF);
     default:
-      if (Character.isLetter(peek) ||
-          peek == '_') { // DONE: identificatori da aggiornare
+      if (Character.isLetter(peek) || peek == '_') {
         String identifier = "";
         int state = 0;
         while (state >= 0) {
@@ -147,7 +146,7 @@ public class Lexer {
               state = 2;
             } else if (Character.isLetter(peek) || Character.isDigit(peek)) {
               state = 1;
-            } else { // TODO: implement Exceptions
+            } else {
               error("Invalid identifier", identifier);
               return null;
             }
@@ -175,9 +174,9 @@ public class Lexer {
         case "read":
           return Word.read;
         case "true":
-            return Word.b_true;
+          return Word.b_true;
         case "false":
-            return Word.b_false;
+          return Word.b_false;
         default:
           return new Word(Tag.ID, identifier);
         }

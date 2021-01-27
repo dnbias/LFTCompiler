@@ -41,7 +41,6 @@ public class Translator {
     } catch (java.io.IOException e) {
       System.out.println("IO error\n");
     };
-    // ... completare ...
   }
 
   private void statlist(int lnext) {
@@ -62,6 +61,8 @@ public class Translator {
       break;
     case '}':
       match('}');
+      code.emit(OpCode.GOto, lnext);
+      break;
     case Tag.EOF:
       match(Tag.EOF);
       code.emit(OpCode.GOto, lnext);
@@ -87,20 +88,25 @@ public class Translator {
       match(Tag.ID);
       expr();
       code.emit(OpCode.istore, id_addr);
+      code.emit(OpCode.GOto, lnext);
       break;
 
     case Tag.PRINT:
       match(Tag.PRINT);
       match('(');
-      exprlist();
-      code.emit(OpCode.invokestatic, 1);
+      int n = exprlist();
+      for (; n > 0; n--) {
+        code.emit(OpCode.invokestatic, 1);
+      }
       match(')');
+
+      code.emit(OpCode.GOto, lnext);
       break;
     case Tag.READ:
       match(Tag.READ);
       match('(');
       if (look.tag != Tag.ID) {
-        error("Error in grammar (stat) after read( with " + look);
+        error("Error in grammar (stat) after read() with " + look);
       }
       id_addr = st.lookupAddress(((Word)look).lexeme);
       if (id_addr == -1) {
@@ -111,6 +117,8 @@ public class Translator {
       match(')');
       code.emit(OpCode.invokestatic, 0);
       code.emit(OpCode.istore, id_addr);
+
+      code.emit(OpCode.GOto, lnext);
       break;
 
     case Tag.COND:
@@ -122,6 +130,7 @@ public class Translator {
       code.emitLabel(cond_else);
       stat(cond_exit);
       code.emitLabel(cond_exit);
+      code.emit(OpCode.GOto, lnext);
       break;
 
     case Tag.WHILE:
@@ -140,13 +149,12 @@ public class Translator {
     case '{':
       match('{');
       statlist(lnext);
-      match('}');
+      // match('}');
       break;
 
     default:
       error("Syntax error in stat()");
     }
-    code.emit(OpCode.GOto, lnext);
   }
 
   private void whenlist(int cond_else, int cond_exit) {
@@ -188,73 +196,96 @@ public class Translator {
   }
 
   private void bexpr(int b_true, int b_false) {
-      int b1_true, b2_
-    switch (((Word)look).lexeme) {
-    case "true":
-              code.emit(OpCode.GOto, b_true);
-              break;
-    case "false":
-              code.emit(OpCode.GOto, b_false);
-              break;
-    case ">":
-      match(Tag.RELOP);
-      expr();
-      expr();
-      code.emit(OpCode.if_icmpgt, b_true);
-      code.emit(OpCode.GOto, b_false);
+    int b1_true, b1_false;
+    switch (look.tag) {
+    case Tag.BOOLEAN:
+      switch (((Word)look).lexeme) {
+      case "true":
+        match(Tag.BOOLEAN);
+        code.emit(OpCode.GOto, b_true);
+        break;
+      case "false":
+        match(Tag.BOOLEAN);
+        code.emit(OpCode.GOto, b_false);
+        break;
+      }
       break;
-    case ">=":
-      match(Tag.RELOP);
-      expr();
-      expr();
-      code.emit(OpCode.if_icmpge, b_true);
-      code.emit(OpCode.GOto, when_fb_false);
+    case Tag.RELOP:
+      switch (((Word)look).lexeme) {
+      case ">":
+        match(Tag.RELOP);
+        expr();
+        expr();
+        code.emit(OpCode.if_icmple, b_false);
+        // code.emit(OpCode.GOto, b_false);
+        break;
+      case ">=":
+        match(Tag.RELOP);
+        expr();
+        expr();
+        code.emit(OpCode.if_icmplt, b_false);
+        // code.emit(OpCode.GOto, b_false);
+        break;
+      case "<":
+        match(Tag.RELOP);
+        expr();
+        expr();
+        code.emit(OpCode.if_icmpge, b_false);
+        // code.emit(OpCode.GOto, b_false);
+        break;
+      case "<=":
+        match(Tag.RELOP);
+        expr();
+        expr();
+        code.emit(OpCode.if_icmpgt, b_false);
+        // code.emit(OpCode.GOto, b_false);
+        break;
+      case "==":
+        match(Tag.RELOP);
+        expr();
+        expr();
+        code.emit(OpCode.if_icmpne, b_false);
+        // code.emit(OpCode.GOto, b_false);
+        break;
+      case "<>":
+        match(Tag.RELOP);
+        expr();
+        expr();
+        code.emit(OpCode.if_icmpeq, b_false);
+        // code.emit(OpCode.GOto, b_false);
+        break;
+      }
       break;
-    case "<":
-      match(Tag.RELOP);
-      expr();
-      expr();
-      code.emit(OpCode.if_icmplt, b_true);
-      code.emit(OpCode.GOto, b_false);
-      break;
-    case "<=":
-      match(Tag.RELOP);
-      expr();
-      expr();
-      code.emit(OpCode.if_icmple, b_true);
-      code.emit(OpCode.GOto, b_false);
-      break;
-    case "==":
-      match(Tag.RELOP);
-      expr();
-      expr();
-      code.emit(OpCode.if_icmpeq, b_true);
-      code.emit(OpCode.GOto, b_false);
-      break;
-    case "<>":
-      match(Tag.RELOP);
-      expr();
-      expr();
-      code.emit(OpCode.if_icmpne, b_true);
-      code.emit(OpCode.GOto, b_false);
-      break;
-    case "!":
-      match(Tag.BOOLOP);
+    case '!':
+      match('!');
       bexpr(b_false, b_true);
+      code.emit(OpCode.GOto, b_false);
       break;
-    case "&&":
-      match(Tag.BOOLOP);
-      b1_true = newLabel();
+    case Tag.AND:
+      match(Tag.AND);
+      b1_true = code.newLabel();
+      match('(');
       bexpr(b1_true, b_false);
-      emitLabel(b1_true);
+      code.emit(OpCode.GOto, b1_true);
+      match(')');
+      code.emitLabel(b1_true);
+      match('(');
       bexpr(b_true, b_false);
+      // code.emit(OpCode.GOto, b_true);
+      match(')');
       break;
-    case "||":
-      match(Tag.BOOLOP);
-      b1_false = newLabel();
+    case Tag.OR:
+      match(Tag.OR);
+      b1_false = code.newLabel();
+      match('(');
       bexpr(b_true, b1_false);
-      emitLabel(b1_false);
+      code.emit(OpCode.GOto, b_true);
+      match(')');
+      code.emitLabel(b1_false);
+      match('(');
       bexpr(b_true, b_false);
+      // code.emit(OpCode.GOto, b_true);
+      match(')');
       break;
     default:
       error("bexpr()");
@@ -262,13 +293,16 @@ public class Translator {
   }
 
   private void expr() {
+    int n;
     switch (look.tag) {
     case '+':
       match('+');
       match('(');
-      exprlist();
+      n = exprlist() - 1;
       match(')');
-      code.emit(OpCode.iadd);
+      for (; n > 0; n--) {
+        code.emit(OpCode.iadd);
+      }
       break;
     case '-':
       match('-');
@@ -279,9 +313,11 @@ public class Translator {
     case '*':
       match('*');
       match('(');
-      exprlist();
+      n = exprlist() - 1;
       match(')');
-      code.emit(OpCode.imul);
+      for (; n > 0; n--) {
+        code.emit(OpCode.imul);
+      }
       break;
     case '/':
       match('/');
@@ -303,18 +339,22 @@ public class Translator {
     }
   }
 
-  private void exprlist() {
+  private int exprlist() {
+    int n_expr = 0;
     expr();
-    exprlistp();
+    n_expr = 1 + exprlistp();
+    return n_expr;
   }
 
-  private void exprlistp() {
+  private int exprlistp() {
+    int n_expr = 0;
     switch (look.tag) {
     case ')':
-      break;
+      return n_expr;
     default:
       expr();
-      exprlistp();
+      n_expr = 1 + exprlistp();
+      return n_expr;
     }
   }
 
@@ -336,6 +376,7 @@ public class Translator {
     } catch (IOException e) {
       e.printStackTrace();
     }
+    System.out.println("Source code translated in Output.j");
     return;
   }
 }
